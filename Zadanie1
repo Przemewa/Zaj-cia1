@@ -1,1 +1,200 @@
+#include <algorithm>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
 
+using namespace std;
+
+int k;		//	liczba cyfr
+int T[5];
+int dlugosc_pierwszej;
+int dluzsza;
+int najdluzsza=0;
+int najkrotsze=0;			//	najkrotsze rozwiazanie funkcji permutuj;
+
+
+void przepisz_tablice(int *tab1, int *tab2, int j)
+{
+	for (int i = 0; i < j; i++)
+	{
+		tab1[i] = tab2[i];
+	}
+}
+
+int licz_dlugosc(int *tab1,int *tab2,int *tab3,int k)
+{
+	dlugosc_pierwszej = tab1[0];
+	dluzsza = dlugosc_pierwszej;
+	najdluzsza = 0;
+
+	for (int i = 0; i < k-1; i++)
+	{
+		if (dlugosc_pierwszej+tab1[1+i] > dluzsza+tab2[0+i])
+		{
+			dluzsza = dlugosc_pierwszej + tab1[1 + i];
+		}
+		else
+		{
+			dluzsza = dluzsza + tab2[0 + i];
+		}
+		dlugosc_pierwszej = dlugosc_pierwszej + tab1[1 + i];
+		if (i > 0)
+		{
+			if (najdluzsza + tab3[i - 1]>dluzsza)
+			{
+				najdluzsza = najdluzsza + tab3[i - 1];
+			}
+			else
+			{
+				najdluzsza = dluzsza;
+			}
+		}
+	}
+	dluzsza = dluzsza + tab2[4];
+	if (najdluzsza + tab3[3] > dluzsza)
+	{
+		najdluzsza = najdluzsza + tab3[3];
+	}
+	else
+	{
+		najdluzsza = dluzsza;
+	}
+	najdluzsza += tab3[4];
+
+	return najdluzsza;
+}
+
+void permutuj(int *tab1,int *tab2,int *tab3,int k)
+{
+	if (k == 0)
+	{
+		int a = licz_dlugosc(tab1, tab2,tab3, 5);
+		printf("%d  ", a);
+		if (najkrotsze == 0)
+		{
+			najkrotsze = a;
+			przepisz_tablice(T, tab1, 5);		//	przepisuje tablice o okreslonym rozmiarze
+		}
+		else if (najkrotsze > a)
+		{
+			najkrotsze = a;
+			przepisz_tablice(T, tab1, 5);
+		}
+		//printf("%d %d %d %d %d \n", tab1[0], tab1[1], tab1[2], tab1[3], tab1[4]);
+	}
+	else
+		for (int i = 0; k-1 >= i; i++)
+		{
+			swap(tab1[i], tab1[k - 1]);
+			swap(tab2[i], tab2[k - 1]);
+			swap(tab3[i], tab3[k - 1]);
+			permutuj(tab1, tab2,tab3, k - 1);
+			swap(tab1[i], tab1[k - 1]);
+			swap(tab2[i], tab2[k - 1]);
+			swap(tab3[i], tab3[k - 1]);
+		}
+ }
+
+int main()
+{
+	int tab1[5] = { 1,2,25,4,5 };
+	int tab2[5] = { 1,2,3,22,5 };
+	int tab3[5] = { 1,2,3,4,5 };
+
+	permutuj(tab1,tab2,tab3,5);
+	//printf("%d", licz_dlugosc(tab1,tab2,5));
+	printf("%d\n", najkrotsze);
+
+	printf("%d %d %d %d %d \n", T[0], T[1], T[2], T[3], T[4]);
+	
+}
+
+
+/*		dwumaszynowy
+#include "pch.h"
+#include <algorithm>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+
+using namespace std;
+
+int k;		//	liczba cyfr
+int T[5];
+int dlugosc_pierwszej;
+int dluzsza;
+int najkrotsze = 0;			//	najkrotsze rozwiazanie funkcji permutuj;
+
+
+void przepisz_tablice(int *tab1, int *tab2, int j)
+{
+	for (int i = 0; i < j; i++)
+	{
+		tab1[i] = tab2[i];
+	}
+}
+
+int licz_dlugosc(int *tab1, int *tab2, int k)
+{
+	dlugosc_pierwszej = tab1[0];
+	dluzsza = dlugosc_pierwszej;
+
+	for (int i = 0; i < k - 1; i++)
+	{
+		if (dlugosc_pierwszej + tab1[1 + i] > dluzsza + tab2[0 + i])
+		{
+			dluzsza = dlugosc_pierwszej + tab1[1 + i];
+		}
+		else
+		{
+			dluzsza = dluzsza + tab2[0 + i];
+		}
+		dlugosc_pierwszej = dlugosc_pierwszej + tab1[1 + i];
+	}
+	dluzsza = dluzsza + tab2[4];
+	return dluzsza;
+}
+
+void permutuj(int *tab1, int *tab2, int k)
+{
+	if (k == 0)
+	{
+		int a = licz_dlugosc(tab1, tab2, 5);
+		printf("%d  ", a);
+		if (najkrotsze == 0)
+		{
+			najkrotsze = a;
+			przepisz_tablice(T, tab1, 5);		//	przepisuje tablice o okreslonym rozmiarze
+		}
+		else if (najkrotsze > a)
+		{
+			najkrotsze = a;
+			przepisz_tablice(T, tab1, 5);
+		}
+		//printf("%d %d %d %d %d \n", tab1[0], tab1[1], tab1[2], tab1[3], tab1[4]);
+	}
+	else
+		for (int i = 0; k - 1 >= i; i++)
+		{
+			swap(tab1[i], tab1[k - 1]);
+			swap(tab2[i], tab2[k - 1]);
+			permutuj(tab1, tab2, k - 1);
+			swap(tab1[i], tab1[k - 1]);
+			swap(tab2[i], tab2[k - 1]);
+		}
+}
+
+int main()
+{
+	int tab1[5] = { 12,7,8,3,2 };
+	int tab2[5] = { 1,2,7,12,4 };
+	int s;
+
+	permutuj(tab1, tab2, 5);
+	//printf("%d", licz_dlugosc(tab1,tab2,5));
+	printf("%d\n", najkrotsze);
+
+	printf("%d %d %d %d %d \n", T[0], T[1], T[2], T[3], T[4]);
+
+}
+*/
