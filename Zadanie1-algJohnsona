@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "pch.h" 
 #include <iostream>
 #define k 9				// liczba cyfr
 using namespace std;
