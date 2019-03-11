@@ -1,0 +1,108 @@
+#include "pch.h"
+#include <iostream>
+#define k 9				// liczba cyfr
+using namespace std;
+
+int T[k];		//	tablica zwroconej kolejnosci
+int G[k];
+int ostatnia=-90;
+int dlugosc_pierwszej;
+int dluzsza;
+
+
+int licz_dlugosc(int *tab1, int *tab2)
+{
+	dlugosc_pierwszej = tab1[0];
+	dluzsza = dlugosc_pierwszej;
+
+	for (int i = 0; i < k - 1; i++)
+	{
+		if (dlugosc_pierwszej + tab1[1 + i] > dluzsza + tab2[0 + i])
+		{
+			dluzsza = dlugosc_pierwszej + tab1[1 + i];
+		}
+		else
+		{
+			dluzsza = dluzsza + tab2[0 + i];
+		}
+		dlugosc_pierwszej = dlugosc_pierwszej + tab1[1 + i];
+	}
+	dluzsza = dluzsza + tab2[4];
+	return dluzsza;
+}
+
+int ustaw_po_kolei(int *tab1, int *tab2)
+{
+	int t1[k], t2[k], dlugosc;
+	for (int i = 0; i < k; i++)
+	{
+		t1[i] = tab1[T[i]];
+		t2[i] = tab2[T[i]];
+	}
+	dlugosc=licz_dlugosc(t1, t2);
+	return dlugosc;
+}
+
+int znajdz_najmniejsza(int *tab)	//	zwraca indeks najmniejszej liczby w tablicy
+{
+	int obecny=-1;
+	for (int i = 0; i < k; i++)
+	{
+		if (G[i] == -1)
+		{
+			//printf("Jestem");
+			if(obecny==-1)
+			{
+				obecny = i;
+			}
+			if (tab[obecny] > tab[i])
+			{
+				obecny = i;
+			}
+		}
+	}
+	//ostatnia = obecny;
+	G[obecny] = 41;
+	return obecny;
+}
+
+void johnson(int *tab1, int *tab2)
+{
+	int id;
+	for (int i = 0; i < k; i++)
+	{
+		if (i % 2==0)
+		{
+			id = znajdz_najmniejsza(tab2);
+			T[k - 1 - i / 2] = id;
+		}
+		else
+		{
+			id = znajdz_najmniejsza(tab1);
+			T[(i - 1) / 2] = id;
+		}
+		printf("%d  ", id);
+	}
+}
+
+int main()
+{
+	int d;							//	dlugosc
+	int tab1[k] = { 12,7,8,3,2,22,12,22,1 };
+	int tab2[k] = { 1,2,7,12,4,21,12,22,9 };
+	//int tab3[5] = { 1,2,3,4,5 };
+	for (int i = 0; i < k; i++)
+	{
+		G[i] = -1;
+	}
+	johnson(tab1, tab2);
+	
+	d=ustaw_po_kolei(tab1, tab2);		//	przelicza dlugosc wykonania dzialania
+
+	for (int i = 0; i < k; i++)
+	{
+		printf("%d  ", T[i]);
+	}
+	printf("\n%d", d);
+
+}
