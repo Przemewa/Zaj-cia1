@@ -37,7 +37,7 @@ int licz_dlugosc(int *tab1, int *tab2, int k)
 		}
 		dlugosc_pierwszej = dlugosc_pierwszej + tab1[1 + i];
 	}
-	dluzsza = dluzsza + tab2[d - 1];
+	dluzsza = dluzsza + tab2[d - 1]; 
 	return dluzsza;
 }
 
