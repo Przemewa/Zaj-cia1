@@ -1,0 +1,113 @@
+#include "pch.h"
+#include <algorithm>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+
+#define d 6				// liczba procesow
+using namespace std;
+
+int k;		//	liczba cyfr
+int T[d];
+int dlugosc_pierwszej;
+int dluzsza;
+int najdluzsza=0;
+int najkrotsze=0;			//	najkrotsze rozwiazanie funkcji permutuj;
+
+
+void przepisz_tablice(int *tab1, int *tab2, int j)
+{
+	for (int i = 0; i < j; i++)
+	{
+		tab1[i] = tab2[i];
+	}
+}
+
+int licz_dlugosc(int *tab1,int *tab2,int *tab3,int k)
+{
+	dlugosc_pierwszej = tab1[0];
+	dluzsza = dlugosc_pierwszej;
+	najdluzsza = 0;
+
+	for (int i = 0; i < k-1; i++)
+	{
+		if (dlugosc_pierwszej+tab1[1+i] > dluzsza+tab2[0+i])
+		{
+			dluzsza = dlugosc_pierwszej + tab1[1 + i];
+		}
+		else
+		{
+			dluzsza = dluzsza + tab2[0 + i];
+		}
+		dlugosc_pierwszej = dlugosc_pierwszej + tab1[1 + i];
+		if (i > 0)
+		{
+			if (najdluzsza + tab3[i - 1]>dluzsza)
+			{
+				najdluzsza = najdluzsza + tab3[i - 1];
+			}
+			else
+			{
+				najdluzsza = dluzsza;
+			}
+		}
+	}
+	dluzsza = dluzsza + tab2[d-1];
+	if (najdluzsza + tab3[d-2] > dluzsza)
+	{
+		najdluzsza = najdluzsza + tab3[3];
+	}
+	else
+	{
+		najdluzsza = dluzsza;
+	}
+	najdluzsza += tab3[d-1];
+
+	return najdluzsza;
+}
+
+void permutuj(int *tab1,int *tab2,int *tab3,int k)
+{
+	if (k == 0)
+	{
+		int a = licz_dlugosc(tab1, tab2,tab3, d);
+		printf("%d  ", a);
+		if (najkrotsze == 0)
+		{
+			najkrotsze = a;
+			przepisz_tablice(T, tab1, d);		//	przepisuje tablice o okreslonym rozmiarze
+		}
+		else if (najkrotsze > a)
+		{
+			najkrotsze = a;
+			przepisz_tablice(T, tab1, d);
+		}
+	}
+	else
+		for (int i = 0; k-1 >= i; i++)
+		{
+			swap(tab1[i], tab1[k - 1]);
+			swap(tab2[i], tab2[k - 1]);
+			swap(tab3[i], tab3[k - 1]);
+			permutuj(tab1, tab2,tab3, k - 1);
+			swap(tab1[i], tab1[k - 1]);
+			swap(tab2[i], tab2[k - 1]);
+			swap(tab3[i], tab3[k - 1]);
+		}
+ }
+
+int main()
+{
+	int tab1[d] = { 1,2,25,4,5,7 };
+	int tab2[d] = { 1,2,3,22,5,7 };
+	int tab3[d] = { 1,2,3,4,5,7 };
+
+	permutuj(tab1,tab2,tab3,d);
+	printf("%d\n", najkrotsze);
+
+	printf("Wybrana najkrotsza kolejnosc pierwszych zadan.\n");
+	for (int i = 0; i < d; i++)
+	{
+		printf("%d  ", T[i]);
+	}
+}
