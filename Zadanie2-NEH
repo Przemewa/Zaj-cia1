@@ -1,0 +1,221 @@
+#include "pch.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <algorithm>
+#define d 6
+
+using namespace std;
+
+int lmaszyn;
+int lprocesow;
+
+class procesy {
+public:
+	int *tab;
+	procesy()
+	{
+		tab = new int[lprocesow];
+	}
+	~procesy()
+	{
+		delete tab;
+	}
+};
+
+procesy *T;
+
+
+int licz_dlugosc(int k)
+{
+	int *dl_kolejnych = new int[lmaszyn];
+	int cmax;
+
+	for (int i = 0; i < lmaszyn; i++)
+	{
+		dl_kolejnych[i] = 0;
+	}
+
+	for (int i = 0; i < k; i++)		//	i- kolejne maszyny
+	{
+		dl_kolejnych[0] += T[0].tab[i];
+		for (int j = 1; j < lmaszyn; j++)		//	j- kolejne zadania
+		{
+			if (dl_kolejnych[j - 1] > dl_kolejnych[j])
+			{
+				dl_kolejnych[j] = dl_kolejnych[j - 1] + T[j].tab[i];
+			}
+			else
+			{
+				dl_kolejnych[j] += T[j].tab[i];
+			}
+
+		}
+	}
+	cmax = dl_kolejnych[lmaszyn - 1];
+	delete dl_kolejnych;
+	return cmax;
+}
+
+void sortuj(int *tab)
+{
+	procesy *T2 = new procesy[lprocesow];
+	for (int i = 0; i < lprocesow; i++)
+	{
+		for (int j = 0; j < lmaszyn; j++)
+		{
+			T2[j].tab[i] = T[j].tab[tab[i]];
+		}
+	}
+	T = T2;
+}
+
+void wyliczwj()		//	zwraca malejaca kolejnosc w(j)
+{
+	int *tab = new int[lprocesow];
+	int *kolejnosc = new int[lprocesow];
+	for (int i = 0; i < lprocesow; i++)
+	{
+		tab[i] = 0;
+		for (int j = 0; j < lmaszyn; j++)
+		{
+			tab[i] = tab[i] + T[j].tab[i];
+		}
+		kolejnosc[i] = tab[i];
+	}
+	sort(tab, tab + lprocesow, greater <int>());
+	/*for (int i = 0; i < lprocesow; i++)		//	wypisuje po kolei wartosci w(j) procesow
+		cout << tab[i] << "  ";
+	cout << endl;*/
+
+
+	for (int i = 0; i < lprocesow; i++)
+	{
+		for (int j = 0; j < lprocesow; j++)
+		{
+			if (tab[i] == kolejnosc[j])		//	najpierw sprawdzamy z ktorego miejsca w tablicy wzielismy liczbe
+			{
+				if (i > 0)					//	zeby nie wywolywac tab[0-1]
+				{
+					if (j != tab[i - 1])	//	sprawdzamy, czy nie przypiszemy dwa razy tego samego miejsca
+					{
+						tab[i] = j;
+					}
+				}
+				else
+				{
+					tab[i] = j;
+				}
+
+			}
+		}
+	}
+
+	
+
+	sortuj(tab);
+	/*for (int i = 0; i < lprocesow; i++)
+		cout << tab[i]<<"  ";*/
+	delete kolejnosc;
+	delete tab;
+}// zwraca //	 zwraca malejącą kolejność wj
+
+void zamien(int k, int l)
+{
+	for (int i = 0; i < 3; i++)
+	{
+		swap(T[i].tab[k], T[i].tab[l]);
+	}
+}
+
+void przepisz(int k, procesy* pomoc, int strona)		//	strona decyduje z której tablicy na którą przepisujemy
+{
+	if (strona == 1)
+	{
+		for (int i = 0; i < k; i++)
+		{
+			for (int j = 0; j < lmaszyn; j++)
+			{
+				pomoc[j].tab[i] = T[j].tab[i];
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < k; i++)
+		{
+			for (int j = 0; j < lmaszyn; j++)
+			{
+				T[j].tab[i] = pomoc[j].tab[i];
+			}
+		}
+	}
+}
+void neh()
+{
+	int cmax;
+	procesy *pomoc = new procesy[lmaszyn];	//	na tej tablicy zapisujemy najkrotsza kolejnosc
+	for (int i = 0; i < lmaszyn; i++)			//	przepisuje tablice, poniewaz wczesniej nie chciala
+	{											//	dac sie przyjac jako wartosc do funkcj W sensie obiekt nie chcial
+		for (int j = 0; j < lprocesow; j++)
+		{
+			pomoc[i].tab[j] = T[i].tab[j];
+		}
+	}
+	
+	for (int i = 2; i <= lprocesow; i++)
+	{
+		cmax = licz_dlugosc(i);
+		for (int j = i - 1; j > 0; j--)
+		{
+			zamien(j, j - 1);
+			if (cmax > licz_dlugosc(i))
+			{
+				przepisz(i, pomoc, 1);				//	zapisuje najkrotsza kolejnosc do obiektu pomoc
+			}
+		}
+		przepisz(i, pomoc, 0);
+	}
+}
+
+int main()
+{
+	fstream plik;
+	plik.open("text.txt", ios::in);
+	/*if (plik.good() == true)
+	{
+		std::cout << "Uzyskano dostep do pliku!" << std::endl;
+		//tu operacje na pliku
+	}
+	else std::cout << "Dostep do pliku zostal zabroniony!" << std::endl;*/
+	plik >> lprocesow;
+	plik >> lmaszyn;
+	T = new procesy[lmaszyn];
+	for (int i = 0; i < lprocesow; i++)
+	{
+		for (int j = 0; j < lmaszyn; j++)
+		{
+			plik >> T[j].tab[i];
+			//cout << T[j].tab[i] << "  ";		//wypisuje to co wczytujemy
+		}
+		cout << endl;
+	}
+
+	plik.close();
+
+	wyliczwj();			//	wylicza w(j) dla wszystkich procesow i od razu ustawia tablice posortowana
+
+	neh();
+
+	for (int i = 0; i < lprocesow; i++)
+	{
+		for (int j = 0; j < lmaszyn; j++)
+		{
+			cout << T[j].tab[i] << "  ";		//wypisuje to co wczytujemy
+		}
+		cout << endl;
+	}
+
+	int dlugosc= licz_dlugosc(lprocesow);
+	cout <<endl<<endl<< dlugosc;
+}
