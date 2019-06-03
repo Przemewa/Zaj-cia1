@@ -1,0 +1,151 @@
+#include "pch.h"
+
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <cstdio>
+#include <vector>
+#include <queue>
+#include <deque>
+
+using namespace std;
+struct job {
+	int r;
+	int p;
+	int q;
+	int indeks;
+};
+
+
+//Schrage zwykłe
+int Schrage(vector<job> & v) {
+	int tmp = 0;		//aktualny czas
+	int cmax = 0;
+
+	deque <job> jobs_N; //zbior zadan niegotowych
+	deque <job> jobs_G; //zbior zadan gotowych
+	vector <job> Schrage; //permutacja czesciowa
+
+	for (int i = 0; i < v.size(); i++)
+		jobs_N.push_back(v[i]); //zapis wszystkich zadan jako niegotowe
+
+	sort(jobs_N.begin(), jobs_N.end(), [](const job & first, const job & second) { return first.r < second.r; }); //sort rosnąco po r
+
+	//dopoki mamy jakies zadania niegotowe lub gotowe
+	while ((jobs_N.empty() != true) || (jobs_G.empty() != true)) {
+		//dopoki mamy zadania niegotowe i ich czas przygotowania minal
+		while ((jobs_N.empty() != true) && (jobs_N.front().r <= tmp)) {
+			jobs_G.push_back(jobs_N.front()); //dodawanie zad gotowego do realizacji
+			jobs_N.pop_front(); //usuwanie zad z niegotowych
+			sort(jobs_G.begin(), jobs_G.end(), [](const job & first, const job & second) { return first.q > second.q; }); //sortowanie malejąco po q
+			//front = zadanie o najwiekszym czasie dostarczenia
+		}
+
+
+		if (jobs_G.empty()) { //jesli nie ma zadnego gotowego
+			tmp = jobs_N.front().r; //przesuwamy sie w czasie
+		}   //aktualny czas to czas najblizszego przygotowanego
+
+		else { //jesli mamy zad gotowe
+			Schrage.push_back(jobs_G.front()); //dodajemy je do permutacji
+			jobs_G.pop_front();
+			tmp += Schrage.back().p; //przesywamy sie w czasie o czas realizacji zad
+
+			if (tmp + Schrage.back().q > cmax)
+				cmax = tmp + Schrage.back().q; //uaktualnienie najpozniejszego czasu dostarczenia
+		}
+
+	}
+	v.clear();
+	v = Schrage; //ostateczna permutacja
+
+	cout << "Kolejnosc zadan: ";
+	for (int i = 0; i < Schrage.size(); i++)
+	{
+		cout << Schrage[i].indeks << " ";
+	}
+	cout << Schrage.size();
+	Schrage.clear();
+	cout << endl << "Cmax - Schrage: " << cmax;
+	return cmax;
+}
+
+
+//Schrage z przerwaniami
+int SchrageP (vector <job> & v) {
+	int t = 0;
+	int Cmax = 0;
+
+	job e;
+	job l;
+
+	e.r = 0;
+	e.p = 0;
+	e.q = 0;
+
+	deque <job> jobs_N; //zbior zadan niegotowych
+	deque <job> jobs_G; //zbior zadan gotowych
+
+	for (int i = 0; i < v.size(); i++)
+		jobs_N.push_back(v[i]); //zapis wszystkich zadan jako niegotowe
+
+	sort(jobs_N.begin(), jobs_N.end(), [](const job & first, const job & second) { return first.r < second.r; });//rosnąco po r
+
+	l = jobs_N.front();
+
+	while ((!jobs_N.empty()) || (!jobs_G.empty())) {
+		while ((!jobs_N.empty()) && jobs_N.front().r <= t) {
+
+			e = jobs_N.front();
+			jobs_G.push_back(e); //dodawanie zad gotowego do realizacji
+			jobs_N.pop_front(); //usuwanie zad z niegotowych
+
+			if (e.q > l.q) {  //jezeli najkrotszy czas przygotowania w jobs_N jest mniejszy od obecnie pobranego zadania z jobs_G
+				l.p = t - e.r;
+				t = e.r;
+				if (l.p > 0)
+					jobs_G.push_back(l);
+			}
+		}
+
+		if (jobs_G.empty()) {
+			t = jobs_N.front().r;
+		}
+		else {
+			sort(jobs_G.begin(), jobs_G.end(), [](const job & first, const job & second) { return first.q > second.q; }); //sortowanie malejaco po Q
+			e = jobs_G.front();
+			jobs_G.pop_front();
+			l = e;
+			t += e.p;
+			Cmax = max(Cmax, t + e.q);
+		}
+	}
+	cout <<"Cmax - Schrage z przerwaniami: "<< Cmax;
+	return Cmax;
+}
+
+
+int main()
+{
+	//Wczytywanie pliku
+	int row;
+	vector <job> jobs;
+	
+	ifstream plik("in50.txt");
+	plik >> row;
+	for (int i = 0; i < row; i++) 
+	{
+		job tmp;
+		plik >> tmp.r >> tmp.p >> tmp.q;
+		tmp.indeks = i+1;
+		jobs.push_back(tmp);
+
+	}
+
+	
+
+	Schrage(jobs);
+	cout << endl;
+	SchrageP(jobs);
+
+}
