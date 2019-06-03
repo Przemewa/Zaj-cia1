@@ -1,0 +1,476 @@
+#include "pch.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <limits>
+#include <numeric>
+
+class Job
+{
+public:
+	// R - dostarczenia
+	// P - Trwania
+	// Q - stygnięcia
+	int R;
+	int P;
+	int Q;
+
+	int P_whichWillBeModifyInInterruptShrage;
+
+	int initialIndex;
+
+	bool stickWithLeftSideJob = false;
+
+	int timeWhenJobBegin = 0;
+
+	Job job() {};
+
+	void showJob() {
+		std::cout << "R: " << R << " P: " << P << " Q: " << Q << " init index: " << initialIndex << "\n";
+	}
+
+	void showInitIndex()
+	{
+		std::cout << initialIndex << " ";
+	}
+
+	void showStickness()
+	{
+		std::cout << stickWithLeftSideJob << " ";
+	}
+
+	void showTimeWhenJobBegin()
+	{
+		std::cout << timeWhenJobBegin << " ";
+	}
+};
+
+int calculateC_MAX(const std::vector<Job> & jobs) {
+	int m = 0, c = 0;
+	for (int i = 0; i < jobs.size(); i++) {
+		m = std::max(jobs[i].R, m) + jobs[i].P;
+		c = std::max(c, m + jobs[i].Q);
+	}
+	return c;
+}
+
+// Zadanie o indexie index jest uwzględniane w liczonym CMAX
+int calculateC_MAX(const std::vector<Job> & jobs, const int index) {
+	int m = 0, c = 0;
+	for (int i = 0; i <= index; i++) {
+		m = std::max(jobs[i].R, m) + jobs[i].P;
+		c = std::max(c, m + jobs[i].Q);
+	}
+	return c;
+}
+
+struct DTO // Data Transfer Object
+{
+	std::vector<Job> order;
+	int C_MAX;
+};
+
+
+
+
+/*
+ Funkcja znajduje indexy dostępnych zadań w przedziale czasu od zera do argumentu elapsedTime włącznie
+*/
+std::vector<int> getIndiciesAvailableJobs(const std::vector<Job> & jobs, const int elapsedTime) {
+	std::vector<int> result;
+	for (int i = 0; i < jobs.size(); i++) {
+		if (jobs[i].R <= elapsedTime) {
+			result.push_back(i);
+		}
+	}
+
+	return result;
+}
+
+// argument jobs musi byc posorotwany rosnąco po R
+DTO shrageNormal(std::vector<Job> jobs) {
+	std::sort(jobs.begin(), jobs.end(), [](const Job & first, const Job & second) { return first.R < second.R; });
+	std::vector<Job> result;
+
+	int elapsedTime = jobs[0].R;
+	int newElapsedTime = 0;
+	int elapsedTimeNext;
+	int Cmax = 0;
+	int biggestQIndex;
+	int biggestQ;
+
+	int Stickness = 0;
+
+	std::vector<int> indicesAvailableJobs;
+
+
+	while (jobs.size() != 0) {
+		indicesAvailableJobs = getIndiciesAvailableJobs(jobs, elapsedTime);
+
+		if (indicesAvailableJobs.size() != 0)
+		{
+			biggestQIndex = indicesAvailableJobs[0];
+			biggestQ = jobs[biggestQIndex].Q;
+
+			for (int index : indicesAvailableJobs) {
+				if (biggestQ < jobs[index].Q) {
+					biggestQ = jobs[index].Q;
+					biggestQIndex = index;
+
+				}
+				else if (biggestQ == jobs[index].Q) { // jeżeli takie same Q to bierzemy o mniejszym indexie początkowym
+
+					if (jobs[biggestQIndex].initialIndex > jobs[index].initialIndex) {
+						biggestQ = jobs[index].Q;
+						biggestQIndex = index;
+					}
+				}
+			}
+
+			// trzeba znaleźć index pierwszego zadania którego czas R jest wiekszy od elapsedTime, to będzie tNext
+			elapsedTimeNext = std::numeric_limits<int>::max();
+			for (int i = 0; i < jobs.size(); i++) {
+				if (jobs[i].R > elapsedTime) {
+					elapsedTimeNext = jobs[i].R;
+					break;
+				}
+			}
+
+			/*
+
+				Sprawdzamy czy zadania są do siebie przyklejone(potrzebne do Carliera:
+				Jeśli elapsedtime zwiększamy o P i mamy kolejne gotowe zdanie to oznacza że między nimi nie ma dziury,
+				jeśli trzeba zwiększyć elapsedtime do kolejnego zadania to oznacza że jest dziura.
+				Ponadto za każdym razem kiedy pojawi się dziura to resetuje wartość pomocnicznej zmiennej do sprawdzania przyklejenia
+
+				Stickness = 0;
+
+
+			*/
+			Stickness++;
+			if (Stickness > 1)
+			{
+				jobs[biggestQIndex].stickWithLeftSideJob = true;
+			}
+
+			// To pole będzie na potrzebne w algorytmie Cariera podczas szukania zadania A
+			jobs[biggestQIndex].timeWhenJobBegin = elapsedTime;
+
+			elapsedTime += jobs[biggestQIndex].P;
+
+
+
+			Cmax = std::max(elapsedTime + jobs[biggestQIndex].Q, Cmax);
+
+			result.push_back(jobs[biggestQIndex]);
+
+			// usunać z kolekcji jobs obiekt pod indexem biggestQIndex
+			jobs.erase(jobs.begin() + biggestQIndex);
+
+		}
+		else {
+			elapsedTime = elapsedTimeNext;
+			Stickness = 0;
+		}
+	}
+
+	DTO dto;
+	dto.C_MAX = Cmax;
+	dto.order = result;
+
+	//std::cout << "Cmax: " << Cmax << "\n";
+
+	return dto;
+}
+
+
+// argument jobs musi byc posorotwany rosnąco po R
+int shrageWithInterrupt(std::vector<Job> jobs) {
+	std::sort(jobs.begin(), jobs.end(), [](const Job & first, const Job & second) { return first.R < second.R; });
+	int elapsedTime = jobs[0].R;
+	int newElapsedTime = 0;
+	int elapsedTimeNext;
+	int Cmax = 0;
+	int biggestQIndex;
+	int biggestQ;
+
+	std::vector<int> indicesAvailableJobs;
+
+
+	while (jobs.size() != 0) {
+		indicesAvailableJobs = getIndiciesAvailableJobs(jobs, elapsedTime);
+
+		if (indicesAvailableJobs.size() != 0) {
+			biggestQIndex = indicesAvailableJobs[0];
+			biggestQ = jobs[biggestQIndex].Q;
+
+			for (int index : indicesAvailableJobs) {
+				if (biggestQ < jobs[index].Q) {
+					biggestQ = jobs[index].Q;
+					biggestQIndex = index;
+
+				}
+				else if (biggestQ == jobs[index].Q) { // jeżeli takie same Q to bierzemy o mniejszym indexie początkowym
+
+					if (jobs[biggestQIndex].initialIndex > jobs[index].initialIndex) {
+						biggestQ = jobs[index].Q;
+						biggestQIndex = index;
+					}
+				}
+			}
+			// trzeba znaleźć index pierwszego zadania którego czas R jest wiekszy od elapsedTime, to będzie tNext
+
+			elapsedTimeNext = std::numeric_limits<int>::max();
+			for (int i = 0; i < jobs.size(); i++) {
+				if (jobs[i].R > elapsedTime) {
+					elapsedTimeNext = jobs[i].R;
+					break;
+				}
+			}
+
+
+			newElapsedTime = std::min(elapsedTime + jobs[biggestQIndex].P_whichWillBeModifyInInterruptShrage, elapsedTimeNext);
+			jobs[biggestQIndex].P_whichWillBeModifyInInterruptShrage = jobs[biggestQIndex].P_whichWillBeModifyInInterruptShrage - (newElapsedTime - elapsedTime);
+			elapsedTime = newElapsedTime;
+
+
+
+
+			// jeśli P zmniejszyło się do zera to obliczay Cmax i usuwamy tą prace z kolekcji
+			if (jobs[biggestQIndex].P_whichWillBeModifyInInterruptShrage == 0) {
+				Cmax = std::max(elapsedTime + jobs[biggestQIndex].Q, Cmax);
+
+				//result.push_back(jobs[biggestQIndex]);
+
+				// usunać z kolekcji jobs obiekt pod indexem biggestQIndex
+				jobs.erase(jobs.begin() + biggestQIndex);
+			}
+
+
+		}
+		else {
+			elapsedTime = elapsedTimeNext;
+		}
+	}
+
+
+	//std::cout << "Cmax: " << Cmax << "\n";
+
+	return Cmax;
+
+	//--------------------------------------------------------------
+	// znaleźlismy index zadania z największym Q. teraz musimy sprawdzić czy w trakcie czasu P tego zadania
+	// pojawi się zadanie z wiekszym Q
+
+	// jeśli pojawi się takie zadanie to wtedy zmniejszamy P pierwszego zadania które się wykonywało, o tyle ile się wykonalo
+	// oraz zwiększamy elapsedTime o tyle ile wykonalo się pierwsze zadanie
+	// i zaczynamy wykonywać to drugie zadanie.
+	// zadanie pierwsze powraca do puli zadań dostępnych.
+
+}
+
+
+//ZNajdujemy zadanie b (wczesniej musi byc shrage normalne)
+int findBjob(const std::vector<Job> & jobs)
+{
+	/*
+	Poszukiwanie zadania B:
+	Liczymy Cmax zadań od prawej strony; jeśli cmax będzie inne to poprzednie zadanie jest zadaniem b
+	*/
+
+	int initialCmax = calculateC_MAX(jobs);
+	int jobsSize = jobs.size();
+	int resultIndex = 0;
+
+	for (int jobIndex = jobsSize - 1; jobIndex >= 0; jobIndex--)
+	{
+		if (calculateC_MAX(jobs, jobIndex) != initialCmax)
+		{
+			resultIndex = jobIndex + 1;
+			break;
+		}
+	}
+	return resultIndex;
+}
+
+// Znajdujemy zadanie A (wcześniej musi być shrage normalne)
+int findAjob(const std::vector<Job> & jobs, const int indexOfBJob)
+{
+	//w shrage określamy czy zadania są przyklejone do jakiegoś po lewej i czas w którym zadanie się zaczyna wykonywać
+	// zaczynamy od zadania o indexie indexOfBJob idziemy w lewo i szukamy pierwszego zadania którego pole stickWithLeftSideJob wynosi false
+
+	int indexOfLeftBound = -1;
+	for (int index = indexOfBJob; index >= 0; index--)
+	{
+		if (jobs[index].stickWithLeftSideJob == false)
+		{
+			indexOfLeftBound = index;
+			break;
+		}
+	}
+	// mamy wszystkie sklejone zadania indeksLeftBound to zadanie które jest pierwsze w bloku
+	// teraz w tym bloku szukamy od lewej pierwszego zadania którego fatkyczny czas rozpoczęcia minus jego R wynosi zero.
+	int resultIndexOfAJob = -1;  //gdyby okazało się że nie ma takiego zadania 
+	for (int index = indexOfLeftBound; index <= indexOfBJob; index++)
+	{
+		if ((jobs[index].timeWhenJobBegin - jobs[index].R) == 0)
+		{
+			resultIndexOfAJob = index;
+			break;
+		}
+	}
+
+
+	return resultIndexOfAJob;
+}
+
+// Zadanie C (po shrage normal)
+int findCJob(const std::vector<Job>& jobs, const int indexOfAJob, const int indexOfBJob)
+{
+	//w bloku szukamy Q mniejszego niż Q zadania b
+
+	int resultIndexOfCJob = -1; //gdyby nie było takeigo zadania
+
+	for (int index = (indexOfBJob - 1); index >= indexOfAJob; index--)//idziemy od b az znajdzimey
+	{
+		if (jobs[index].Q < jobs[indexOfBJob].Q)
+		{
+			resultIndexOfCJob = index;
+			break;
+		}
+	}
+	return resultIndexOfCJob; // może zwrócić -1
+}
+
+
+DTO carier(DTO initDto)
+{
+
+	DTO dto = shrageNormal(initDto.order);
+
+	int indexOfBJob = findBjob(dto.order);
+	int indexOfAJob = findAjob(dto.order, indexOfBJob);
+	int indexOfCJob = findCJob(dto.order, indexOfAJob, indexOfBJob);
+
+	if (indexOfCJob == -1)
+	{
+		return dto;
+	}
+
+	std::vector<Job> K;
+	for (int index = (indexOfCJob + 1); index <= indexOfBJob; index++)
+	{
+		K.push_back(dto.order[index]);
+	}
+
+
+	int smallestRinK = (*std::min_element(K.begin(), K.end(),
+		[](const Job & lhs, const Job & rhs)
+	{
+		return lhs.R < rhs.R;
+	})).R;
+
+	int smallestQinK = (*std::min_element(K.begin(), K.end(),
+		[](const Job & lhs, const Job & rhs)
+	{
+		return lhs.Q < rhs.Q;
+	})).Q;
+
+	int sumOfEveryPparametersInK = std::accumulate(K.begin(), K.end(), 0,
+		[] (int i, const Job & job)
+	{
+		return job.P + i;
+	});
+
+
+	int copyValueRofCJob = dto.order[indexOfCJob].R;
+
+	// linijka 14
+	dto.order[indexOfCJob].R = std::max(copyValueRofCJob, (smallestRinK + sumOfEveryPparametersInK));//rpi
+
+	int CmaxFromShragerInterrupt = shrageWithInterrupt(dto.order);
+
+
+	int H_OD_K = smallestRinK + sumOfEveryPparametersInK + smallestQinK;
+
+
+	CmaxFromShragerInterrupt = std::max(H_OD_K, CmaxFromShragerInterrupt);
+
+
+	if (CmaxFromShragerInterrupt < dto.C_MAX)
+	{
+		dto = carier(dto);
+	}
+
+	//linijka 21
+
+	dto.order[indexOfCJob].R = copyValueRofCJob;
+
+	int copyValueQofCJob = dto.order[indexOfCJob].Q;
+
+	dto.order[indexOfCJob].Q = std::max(copyValueQofCJob, (smallestQinK + sumOfEveryPparametersInK));
+
+	CmaxFromShragerInterrupt = shrageWithInterrupt(dto.order);
+
+
+	H_OD_K = smallestRinK + sumOfEveryPparametersInK + smallestQinK;
+
+	CmaxFromShragerInterrupt = std::max(H_OD_K, CmaxFromShragerInterrupt);
+
+	if (CmaxFromShragerInterrupt < dto.C_MAX)
+	{
+		dto = carier(dto);
+	}
+	dto.order[indexOfCJob].Q = copyValueQofCJob;
+
+	return dto;
+
+}
+
+int main(int argc, char **argv) {
+
+	std::vector<Job> jobs;
+
+	Job temporaryJob;
+	DTO dto;
+	int currentBestCmax = std::numeric_limits<int>::max();
+
+	std::vector<Job> currentBestOrder;
+
+	std::ifstream myfile("in200.txt");
+	int quantityOfData = 0;
+
+
+	myfile >> quantityOfData;
+		// read data
+
+	for (int i = 0; i < quantityOfData; i++) {
+		myfile >> temporaryJob.R >> temporaryJob.P >> temporaryJob.Q;
+		temporaryJob.initialIndex = i;
+		temporaryJob.P_whichWillBeModifyInInterruptShrage = temporaryJob.P;
+
+		jobs.push_back(temporaryJob);
+	}
+
+	// Posortujmye vector prac po R rosnąco
+
+	std::sort(jobs.begin(), jobs.end(), [] (const Job & first, const Job & second) { return first.R < second.R; });
+
+
+
+
+	// Carier
+
+	dto.order = jobs;
+	dto = carier(dto);
+	std::cout << "dto.cmax : " << dto.C_MAX << "\n\n";
+	std::cout << "Order: [";
+	for (auto& obj : dto.order) {
+		obj.showInitIndex();
+	}
+	std::cout << "]\n\n";
+
+	return 0;
+}
