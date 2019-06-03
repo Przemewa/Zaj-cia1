@@ -1,151 +1,139 @@
+
 #include "pch.h"
-
 #include <iostream>
-#include <string>
 #include <fstream>
-#include <cstdio>
+#include <string>
 #include <vector>
-#include <queue>
-#include <deque>
+#include <algorithm>
+#include <limits>
 
-using namespace std;
-struct job {
-	int r;
-	int p;
-	int q;
-	int indeks;
+class Job
+{
+public:
+	int R; //czas dostarczania
+	int P; //czas trwania
+	int Q; //czas stygniecia
+
+	int IndekPoczatkowy;
+
+	Job job() {};
 };
 
-
-//Schrage zwykłe
-int Schrage(vector<job> & v) {
-	int tmp = 0;		//aktualny czas
-	int cmax = 0;
-
-	deque <job> jobs_N; //zbior zadan niegotowych
-	deque <job> jobs_G; //zbior zadan gotowych
-	vector <job> Schrage; //permutacja czesciowa
-
-	for (int i = 0; i < v.size(); i++)
-		jobs_N.push_back(v[i]); //zapis wszystkich zadan jako niegotowe
-
-	sort(jobs_N.begin(), jobs_N.end(), [](const job & first, const job & second) { return first.r < second.r; }); //sort rosnąco po r
-
-	//dopoki mamy jakies zadania niegotowe lub gotowe
-	while ((jobs_N.empty() != true) || (jobs_G.empty() != true)) {
-		//dopoki mamy zadania niegotowe i ich czas przygotowania minal
-		while ((jobs_N.empty() != true) && (jobs_N.front().r <= tmp)) {
-			jobs_G.push_back(jobs_N.front()); //dodawanie zad gotowego do realizacji
-			jobs_N.pop_front(); //usuwanie zad z niegotowych
-			sort(jobs_G.begin(), jobs_G.end(), [](const job & first, const job & second) { return first.q > second.q; }); //sortowanie malejąco po q
-			//front = zadanie o najwiekszym czasie dostarczenia
-		}
-
-
-		if (jobs_G.empty()) { //jesli nie ma zadnego gotowego
-			tmp = jobs_N.front().r; //przesuwamy sie w czasie
-		}   //aktualny czas to czas najblizszego przygotowanego
-
-		else { //jesli mamy zad gotowe
-			Schrage.push_back(jobs_G.front()); //dodajemy je do permutacji
-			jobs_G.pop_front();
-			tmp += Schrage.back().p; //przesywamy sie w czasie o czas realizacji zad
-
-			if (tmp + Schrage.back().q > cmax)
-				cmax = tmp + Schrage.back().q; //uaktualnienie najpozniejszego czasu dostarczenia
-		}
-
+int LiczC_MAX(std::vector<Job> & jobs) {
+	int m = 0, c = 0;
+	for (int i = 0; i < jobs.size(); i++) {
+		m = std::max(jobs[i].R, m) + jobs[i].P;
+		c = std::max(c, m + jobs[i].Q);
 	}
-	v.clear();
-	v = Schrage; //ostateczna permutacja
-
-	cout << "Kolejnosc zadan: ";
-	for (int i = 0; i < Schrage.size(); i++)
-	{
-		cout << Schrage[i].indeks << " ";
-	}
-	cout << Schrage.size();
-	Schrage.clear();
-	cout << endl << "Cmax - Schrage: " << cmax;
-	return cmax;
+	return c;
 }
 
 
-//Schrage z przerwaniami
-int SchrageP (vector <job> & v) {
-	int t = 0;
-	int Cmax = 0;
+//znajduje dostepne zadania sposrod niewykonanych jeszcze zadan
 
-	job e;
-	job l;
+std::vector<int> ZnajdzIndeksDostepnych(std::vector<Job> & jobs, int czas) {
+	std::vector<int> result;
+	for (int i = 0; i < jobs.size(); i++) {
+		if (jobs[i].R <= czas) {
+			result.push_back(i);
+		}
+	}
 
-	e.r = 0;
-	e.p = 0;
-	e.q = 0;
+	return result;
+}
 
-	deque <job> jobs_N; //zbior zadan niegotowych
-	deque <job> jobs_G; //zbior zadan gotowych
+// Szukamy zadania o największym Q
 
-	for (int i = 0; i < v.size(); i++)
-		jobs_N.push_back(v[i]); //zapis wszystkich zadan jako niegotowe
+std::vector<Job> & dodajzMAX_Q(std::vector<Job> & jobs, std::vector<int> & DostepneZadniaIndeks,
+	std::vector<Job> &Klejnosc, int & czas) {
 
-	sort(jobs_N.begin(), jobs_N.end(), [](const job & first, const job & second) { return first.r < second.r; });//rosnąco po r
+	int MAX_QIndeks = DostepneZadniaIndeks[0];
+	int MAX_Q = jobs[MAX_QIndeks].Q;
 
-	l = jobs_N.front();
+	for (int index : DostepneZadniaIndeks) {
+		if (MAX_Q < jobs[index].Q) {
+			MAX_Q = jobs[index].Q;
+			MAX_QIndeks = index;
 
-	while ((!jobs_N.empty()) || (!jobs_G.empty())) {
-		while ((!jobs_N.empty()) && jobs_N.front().r <= t) {
+		}
+		else if (MAX_Q == jobs[index].Q) { // jeżeli takie same Q to bierzemy o mniejszym indexie początkowym
 
-			e = jobs_N.front();
-			jobs_G.push_back(e); //dodawanie zad gotowego do realizacji
-			jobs_N.pop_front(); //usuwanie zad z niegotowych
-
-			if (e.q > l.q) {  //jezeli najkrotszy czas przygotowania w jobs_N jest mniejszy od obecnie pobranego zadania z jobs_G
-				l.p = t - e.r;
-				t = e.r;
-				if (l.p > 0)
-					jobs_G.push_back(l);
+			if (jobs[MAX_QIndeks].IndekPoczatkowy > jobs[index].IndekPoczatkowy) {
+				MAX_Q = jobs[index].Q;
+				MAX_QIndeks = index;
 			}
 		}
-
-		if (jobs_G.empty()) {
-			t = jobs_N.front().r;
-		}
-		else {
-			sort(jobs_G.begin(), jobs_G.end(), [](const job & first, const job & second) { return first.q > second.q; }); //sortowanie malejaco po Q
-			e = jobs_G.front();
-			jobs_G.pop_front();
-			l = e;
-			t += e.p;
-			Cmax = max(Cmax, t + e.q);
-		}
 	}
-	cout <<"Cmax - Schrage z przerwaniami: "<< Cmax;
-	return Cmax;
+
+
+	Klejnosc.push_back(jobs[MAX_QIndeks]);
+	czas += jobs[MAX_QIndeks].P;
+	jobs[MAX_QIndeks].R = std::numeric_limits<int>::max();
+
+	return Klejnosc; //kolejnosc uszeregowania
 }
 
+int main(int argc, char **argv) {
 
-int main()
-{
-	//Wczytywanie pliku
-	int row;
-	vector <job> jobs;
-	
-	ifstream plik("in50.txt");
-	plik >> row;
-	for (int i = 0; i < row; i++) 
-	{
-		job tmp;
-		plik >> tmp.r >> tmp.p >> tmp.q;
-		tmp.indeks = i+1;
-		jobs.push_back(tmp);
+	std::vector<Job> jobs, result;
+	Job tymczasJob;
+
+	// czytanie danych
+	std::ifstream plik("in100.txt");
+	int IloscWczytanychZadan = 0;
+	plik >> IloscWczytanychZadan;
+
+	for (int i = 0; i < IloscWczytanychZadan; i++) {
+		plik >> tymczasJob.R >> tymczasJob.P >> tymczasJob.Q;
+		tymczasJob.IndekPoczatkowy = i;
+
+		jobs.push_back(tymczasJob);
+	}
+
+	// Sortowanie vector prac po R rosnąco
+	std::sort(jobs.begin(), jobs.end(), [](const Job & first, const Job & second) { return first.R < second.R; });
+
+
+
+	Job JobzMIN_R = jobs[0];
+	int czas = JobzMIN_R.R;
+
+	int IloscZadan = jobs.size();
+	std::vector<int> IndeksDostepnychZadan;
+
+	// Shrange zwykłe
+
+	while (result.size() != IloscZadan) {
+
+		// Z puli zadań wyszukujemy te indexy zadań których R jest większe bądź równe czas
+		// oraz nie bierzemy pod uwage zadań uprzednio dodanych do kolekcji result
+
+		IndeksDostepnychZadan = ZnajdzIndeksDostepnych(jobs, czas);
+
+		// W przypadku gdy obecnie nie ma żdanych dostępnych zadań w czasie czas
+		// To w kolekcji z zadaniami wyszukujemy pierwsze zadanie którego R jest większe od czas
+
+		if (IndeksDostepnychZadan.size() == 0) {
+			// W tym przypadku znaleźć pierwsze większe R niz czas z vectora jobs i przypisac je do czasu
+			for (int i = 0; i < jobs.size(); i++) {
+				if (jobs[i].R > czas && (jobs[i].R != std::numeric_limits<int>::max())) {
+					czas = jobs[i].R;
+					// kiedy znaleźliśmy następne czas dla którego będą jakieś zadania, to ponownie wyszukujemy dostępne zadania
+					IndeksDostepnychZadan = ZnajdzIndeksDostepnych(jobs, czas);
+					break;
+				}
+			}
+
+		}
+
+		
+		result = dodajzMAX_Q(jobs, IndeksDostepnychZadan, result, czas);
 
 	}
 
-	
 
-	Schrage(jobs);
-	cout << endl;
-	SchrageP(jobs);
+	int C_max = LiczC_MAX(result);
+	std::cout << " C_max = " << C_max << "\n";
 
+	return 0;
 }
