@@ -1,0 +1,245 @@
+#include "pch.h"
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
+
+
+int lmaszyn;
+int lprocesow;
+
+double temp0;				//	temperatura poczatkowa
+double temp;				//	temperatura biezaca
+int globalny_cmax;
+int kmax=1000;
+
+using namespace std;
+
+class procesy {
+public:
+	int *tab;
+	procesy()
+	{
+		tab = new int[lprocesow];
+	}
+	~procesy()
+	{
+		delete tab;
+	}
+
+	procesy & operator = (const procesy &d)
+	{
+		for (int i = 0; i < lprocesow; i++)
+		{
+			this->tab[i] = d.tab[i];
+		}
+		return *this;
+	}
+};
+
+
+procesy *pamiec;
+
+void wypisz(procesy *pi)
+{
+	for (int i = 0; i < lprocesow; i++)
+	{
+		for (int j = 0; j < lmaszyn; j++)
+		{
+
+			cout << pi[j].tab[i] << "  ";		//wypisuje to co wczytujemy
+		}
+		cout << endl;
+	}
+}
+
+void zamien(procesy *pi, procesy *pi2, int a, int b)
+{
+	for (int i = 0; i < lmaszyn; i++)
+	{
+		pi2[i].tab[a] = pi[i].tab[b];
+		pi2[i].tab[b] = pi[i].tab[a];
+	}
+}
+
+void zamien(procesy *pi, int a, int b)
+{
+	int g;
+	for (int i = 0; i < lmaszyn; i++)
+	{
+		g = pi[i].tab[a];
+		pi[i].tab[a] = pi[i].tab[b];
+		pi[i].tab[b] = g;
+	}
+}
+
+void przepisz(procesy *pi, procesy *pi2)
+{
+	for (int i = 0; i < lmaszyn; i++)
+	{
+		for (int j = 0; j < lprocesow; j++)
+		{
+			pi[i] = pi2[i];
+		}
+	}
+}
+
+int licz_dlugosc(procesy *p)		//	liczy dlugosc cmaxow. k jest liczba 
+{
+	int *dl_kolejnych = new int[lmaszyn];
+	int cmax;
+
+	for (int i = 0; i < lmaszyn; i++)
+	{
+		dl_kolejnych[i] = 0;
+	}
+
+	for (int i = 0; i < lprocesow; i++)		//	i- kolejne maszyny
+	{
+		dl_kolejnych[0] += p[0].tab[i];
+		for (int j = 1; j < lmaszyn; j++)		//	j- kolejne zadania
+		{
+			if (dl_kolejnych[j - 1] > dl_kolejnych[j])
+			{
+				dl_kolejnych[j] = dl_kolejnych[j - 1] + p[j].tab[i];
+			}
+			else
+			{
+				dl_kolejnych[j] += p[j].tab[i];
+			}
+
+		}
+	}
+	cmax = dl_kolejnych[lmaszyn - 1];
+	delete dl_kolejnych;
+	return cmax;
+}
+
+bool decyzja(int stary_cmax, int cmax2)
+{
+	bool czy;
+	double los;
+	los = (double)rand() / RAND_MAX;
+	if (los < exp((stary_cmax - cmax2) / temp))
+	{
+		czy = true;
+	}
+	else
+	{
+		czy = false;
+	}
+
+	return czy;
+}
+
+void generuj(procesy* pi, procesy *pi2, int Cmax)
+{
+	int a, b;
+	bool czy;
+	int cmax2;
+
+	do {
+		a = rand() % lprocesow;
+		b = rand() % lprocesow;
+		zamien(pi2, a, b);
+		cmax2 = licz_dlugosc(pi2);
+		if (cmax2 < Cmax || decyzja(Cmax,cmax2) == true)
+		{
+			przepisz(pi, pi2);
+			czy = true;
+			Cmax = cmax2;
+			//cout << "Cmax = " << Cmax << endl;
+		}
+		else
+		{
+			//cout << "Tutaj";
+			zamien(pi2, a, b);
+			czy = false;
+		}
+	} while (czy==false);
+
+}
+
+void wyzarzanie(procesy *pi, procesy *pi2)
+{
+	int cmax;
+	long unsigned int wynik;
+	//cout << "Podaj temperature poczatkowa" << endl;
+	//cin >> temp0;
+	cout << endl;
+
+	for (double temp2 = 0.0001; temp2 < 10000000; temp2 *= 10)
+	{
+		wynik = 0;
+		for (int i = 0; i < 100; i++)
+		{
+			temp = temp2;
+			przepisz(pi, pamiec);
+			przepisz(pi2, pamiec);
+			cmax = licz_dlugosc(pi);
+			for (int k = 1; temp > 0.00001 ; k++)
+			{
+				//cout << "Jestem";
+				//wypisz(pi);
+				cmax = licz_dlugosc(pi);
+				temp = temp * 0.8;							//		wspolczynnik opadania temperatury
+				generuj(pi, pi2, cmax);
+			}
+			wynik += cmax;
+		}
+		wynik = wynik / 100;
+		cout << "Temp. = " << temp2 << "    Srednia = " << wynik << endl;
+	}
+	
+
+	cout << "temp = " << temp << endl;
+
+}
+
+int main()
+{
+	srand(time(NULL));
+	procesy *pi;					//	aktualne rozwiazanie
+	procesy *pi2;					//	sasiad aktualnego rozwiazania
+
+	fstream plik;
+	plik.open("text.txt", ios::in);
+	if (plik.good() == true)
+	{
+		cout << "Uzyskano dostep do pliku!" << endl;
+		//tu operacje na pliku
+	}
+	else cout << "Dostep do pliku zostal zabroniony!" << endl;
+
+	plik >> lprocesow;
+	plik >> lmaszyn;
+	//T = new procesy[lmaszyn];
+	pi = new procesy[lprocesow ];
+	pi2 = new procesy[ lprocesow ];
+	pamiec = new procesy[lprocesow];
+	for (int i = 0; i < lprocesow; i++)
+	{
+		for (int j = 0; j < lmaszyn; j++)
+		{
+			plik >> pi[j].tab[i];
+			//cout << pi[j].tab[i] << "  ";		//wypisuje to co wczytujemy
+		}
+		//cout << endl;
+	}
+	//wypisz(pi);
+	plik.close();
+	
+	przepisz(pi2, pi);
+	przepisz(pamiec, pi);
+	//cout << pi[3].tab[3] << "  ";
+	//wypisz(pi2);
+	wyzarzanie(pi, pi2);
+
+	//wypisz(pi);
+
+	int dlugosc = licz_dlugosc(pi);
+	//cout << endl << endl << dlugosc;
+	
+}
